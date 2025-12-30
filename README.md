@@ -1,5 +1,5 @@
 # Ekstrasi Area Plat Nomor Kendaraan
-Kelompok 10 	
+Kelompok 10 5TIP1 
 Mata Kuliah Image Processing -  
 Kelompok : 
 Dea Azahwa Salsabila (23010055) -
