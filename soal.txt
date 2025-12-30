@@ -1,0 +1,55 @@
+Proyek ini membangun aplikasi untuk mendeteksi dan mengekstraksi area plat nomor
+motor/mobil secara otomatis menggunakan kombinasi metode edge detection,
+transformasi morfologi, dan contour filtering tanpa OCR. Mahasiswa akan
+mengembangkan algoritma yang mampu memisahkan area plat dari latar belakang yang
+kompleks, kemudian menampilkan bounding box dan hasil cropping secara interaktif di
+Streamlit
+
+
+def process_steps(img, params):
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+
+    # --- Ganti Canny dengan Adaptive Threshold (lebih stabil untuk plat terang) ---
+    thresh = cv2.adaptiveThreshold(
+        blurred, 255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY_INV,
+        45, 5
+    )
+
+    # --- Morphology untuk menyatukan area plat ---
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (25, 7))
+    morph = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+
+    # --- Temukan kontur ---
+    contours, _ = cv2.findContours(morph, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    filtered = []
+    for cnt in contours:
+        x, y, w, h = cv2.boundingRect(cnt)
+        area = w * h
+        ratio = w / float(h)
+
+        # --- Syarat longgar agar plat mudah lolos ---
+        if area > 2000 and 2 < ratio < 10:
+            filtered.append((cnt, area))
+
+    # Pilih top N plat
+    filtered.sort(key=lambda x: x[1], reverse=True)
+    filtered = filtered[:params['max_plates']]
+
+    img_box = img.copy()
+    crops = []
+    for i, (cnt, _) in enumerate(filtered):
+        x, y, w, h = cv2.boundingRect(cnt)
+        cv2.rectangle(img_box, (x, y), (x+w, y+h), (0, 255, 0), 2)
+
+        # Tambahkan label "Plat X"
+        cv2.putText(img_box, f"Plat {i+1}", (x, y - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+        crop = img[y:y+h, x:x+w]
+        crops.append(crop)
+
+    return thresh, morph, img_box, crops
